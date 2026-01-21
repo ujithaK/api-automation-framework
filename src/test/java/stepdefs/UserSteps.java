@@ -1,114 +1,115 @@
 package stepdefs;
 
 import constants.Endpoints;
-import io.cucumber.java.en.*;
-import pojo.User;
 import io.restassured.response.Response;
-import base.BaseTest;
+import pojo.User;
+import utils.RequestSpecUtil;
+import utils.ResponseSpecUtil;
 
-import static io.restassured.RestAssured.*;
-import static org.hamcrest.Matchers.*;
+import static io.restassured.RestAssured.given;
+import static org.testng.Assert.assertEquals;
 
-public class UserSteps extends BaseTest {
+import io.cucumber.java.en.*;
 
-    private static String username;
-    private static Response response;
+public class UserSteps {
 
-    @Given("I have a unique username")
-    public void generateUniqueUsername() {
-        username = "ujitha" + System.currentTimeMillis();
+    private User user;
+    private String username;
+    private Response response;
+
+    // ------------------ CREATE USER ------------------
+    @Given("I have user details with username {string}, firstName {string}, lastName {string}, email {string}, phone {string}, password {string}, status {int}")
+    public void i_have_user_details(String username, String firstName, String lastName,
+                                    String email, String phone, String password, int status) {
+        this.username = username;
+        this.user = new User(username, firstName, lastName, email, phone, password, status);
     }
 
-    @When("I create a user with all details")
-    public void createUser() {
-        User user = new User(
-                username,
-                "Ujitha",
-                "Yuzu",
-                "ujitha@example.com",
-                "1234567890",
-                "password123",
-                1
-        );
-
+    @When("I send a POST request to create the user")
+    public void i_send_post_request_to_create_user() {
         response = given()
-                .contentType("application/json")
+                .spec(RequestSpecUtil.requestSpec())
                 .body(user)
                 .when()
                 .post(Endpoints.USER);
+
+        response.then().spec(ResponseSpecUtil.responseSpec200());
+    }
+
+    @Then("the response status should be {int}")
+    public void the_response_status_should_be(Integer statusCode) {
+        assertEquals(response.getStatusCode(), statusCode.intValue());
     }
 
     @Then("the user should be created successfully")
-    public void verifyUserCreated() {
-        response.then()
-                .statusCode(200)
-                .body("message", notNullValue());
+    public void the_user_should_be_created() {
+        String message = response.jsonPath().getString("message");
+        assertEquals(message.contains(username), true, "User creation message mismatch!");
     }
 
-    @When("I get the user details")
-    public void getUser() {
+    // ------------------ GET USER ------------------
+    @Given("I have an existing username {string}")
+    public void i_have_existing_username(String username) {
+        this.username = username;
+    }
+
+    @When("I send a GET request to fetch the user")
+    public void i_send_get_request_to_fetch_user() {
         response = given()
-                .log().all()
+                .spec(RequestSpecUtil.requestSpec())
                 .when()
                 .get(Endpoints.USER + "/" + username);
     }
 
-    @Then("the user details should match the username")
-    public void verifyUsername() {
-        response.then()
-                .log().all()
-                .statusCode(200)
-                .body("username", equalTo(username));
+    @Then("the response username should be {string}")
+    public void the_response_username_should_be(String expectedUsername) {
+        User fetchedUser = response.as(User.class);
+        assertEquals(fetchedUser.getUsername(), expectedUsername, "Fetched username mismatch!");
     }
 
-    @When("I update the user with new details")
-    public void updateUser() {
-        User updatedUser = new User(
-                username,
-                "UpdatedFirstName",
-                "UpdatedLastName",
-                "updated@example.com",
-                "9876543210",
-                "newpassword",
-                2
-        );
+    // ------------------ UPDATE USER ------------------
+    @Given("I update user details with firstName {string}, lastName {string}, email {string}, phone {string}, password {string}, status {int}")
+    public void i_update_user_details(String firstName, String lastName, String email,
+                                      String phone, String password, int status) {
+        user = new User(username, firstName, lastName, email, phone, password, status);
+    }
 
+    @When("I send a PUT request to update the user")
+    public void i_send_put_request_to_update_user() {
         response = given()
-                .contentType("application/json")
-                .body(updatedUser)
+                .spec(RequestSpecUtil.requestSpec())
+                .body(user)
                 .when()
                 .put(Endpoints.USER + "/" + username);
+
+        response.then().spec(ResponseSpecUtil.responseSpec200());
     }
 
-    @Then("the user should be updated successfully")
-    public void verifyUserUpdated() {
-        response.then()
-                .statusCode(200)
-                .body("message", notNullValue());
-    }
-
-    @When("I delete the user")
-    public void deleteUser() {
-        response = when()
+    // ------------------ DELETE USER ------------------
+    @When("I send a DELETE request to delete the user")
+    public void i_send_delete_request_to_delete_user() {
+        response = given()
+                .spec(RequestSpecUtil.requestSpec())
+                .when()
                 .delete(Endpoints.USER + "/" + username);
+
+        response.then().spec(ResponseSpecUtil.responseSpec200());
     }
 
-    @Then("the user should be deleted successfully")
-    public void verifyUserDeleted() {
-        response.then()
-                .statusCode(200)
-                .body("message", equalTo(username));
+    @Then("the deleted username should be {string}")
+    public void the_deleted_username_should_be(String expectedUsername) {
+        String message = response.jsonPath().getString("message");
+        assertEquals(message, expectedUsername, "Deleted username mismatch!");
     }
 
-    @When("I try to get a non-existing user {string}")
-    public void negativeTest(String nonExistingUser) {
-        response = when()
-                .get(Endpoints.USER + "/" + nonExistingUser);
+    // ------------------ NEGATIVE TEST ------------------
+    @Given("I have a non-existing username {string}")
+    public void i_have_non_existing_username(String username) {
+        this.username = username;
     }
 
-    @Then("the response status code should be {int}")
-    public void verifyNegativeStatusCode(int statusCode) {
-        response.then()
-                .statusCode(statusCode);
+    @Then("the response message should be {string}")
+    public void the_response_message_should_be(String message) {
+        assertEquals(response.jsonPath().getString("User not found"), message, "Error message mismatch!");
     }
 }

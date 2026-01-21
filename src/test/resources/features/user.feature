@@ -1,30 +1,36 @@
-Feature: User CRUD operations
+Feature: User CRUD operations on Petstore API
 
-  Background:
-    Given the base URI is set
+  Scenario Outline: Create a new user
+    Given I have user details with username "<username>", firstName "<firstName>", lastName "<lastName>", email "<email>", phone "<phone>", password "<password>", status <status>
+    When I send a POST request to create the user
+    Then the response status should be 200
+    And the user should be created successfully
 
-  Scenario: Create a new user
-    When I create a user with name "Ujitha" and job "QA"
-    Then the user should be created successfully
-    And I store the user ID
+    Examples:
+      | username       | firstName | lastName | email             | phone      | password     | status |
+      | ujitha123      | Ujitha    | Yuzu     | ujitha@example.com| 1234567890 | password123  | 1      |
+      | test123        | Test      | User     | test@example.com  | 9876543210 | testpass     | 1      |
 
-  Scenario: Get user by ID
-    Given I have a user ID
-    When I get the user details
-    Then the response status code should be 200
-    And the name should be "Ujitha"
+  Scenario: Get an existing user
+    Given I have an existing username "<username>"
+    When I send a GET request to fetch the user
+    Then the response status should be 200
+    And the response username should be "<username>"
 
-  Scenario: Update user details
-    Given I have a user ID
-    When I update the user name to "Updated" and job to "Lead"
-    Then the response status code should be 200
-    And the job should be "Lead"
+  Scenario: Update an existing user
+    Given I have an existing username "<username>"
+    And I update user details with firstName "UpdatedFirstName", lastName "UpdatedLastName", email "updated@example.com", phone "9999999999", password "newpass", status 2
+    When I send a PUT request to update the user
+    Then the response status should be 200
 
-  Scenario: Delete user
-    Given I have a user ID
-    When I delete the user
-    Then the response status code should be 204
+  Scenario: Delete an existing user
+    Given I have an existing username "<username>"
+    When I send a DELETE request to delete the user
+    Then the response status should be 200
+    And the deleted username should be "<username>"
 
-  Scenario: Negative test for non-existent user
-    When I try to get user with ID 9999
-    Then the response status code should be 404
+  Scenario: Negative test for non-existing user
+    Given I have a non-existing username "nonExistingUserXYZ"
+    When I send a GET request to fetch the user
+    Then the response status should be 404
+    And the response message should be "User not found"
